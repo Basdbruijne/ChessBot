@@ -305,7 +305,7 @@ class ChessBot():
         else:
             user_next = 'self'
         
-        if depth == 2:
+        if depth == 3:
             return [score, s]
        
         
