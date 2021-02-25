@@ -3,6 +3,7 @@ from tkinter import *
 import tkinter.font as font
 from functools import partial
 import time
+import numpy as np
 
 class Window(Frame):
     """
@@ -89,10 +90,12 @@ class Window(Frame):
                 self.button[self.to_loc].configure(bg="yellow") 
                 self.set_text()
                 self.update()
-                start, end = self.bot.next_move()
+                self.check_check()
+                start, self.end = self.bot.next_move()
                 self.reset_background()
                 self.button[start[0]*8+start[1]].configure(bg="green") 
-                self.button[end[0]*8+end[1]].configure(bg="yellow") 
+                self.button[self.end[0]*8+self.end[1]].configure(bg="yellow")
+                self.check_check()
             else:
                 self.button[self.fromm_loc].configure(bg="red") 
             
@@ -102,7 +105,15 @@ class Window(Frame):
             self.reset_background()
             self.fromm = ''
             self.set_text()
-        
+            
+
+    def check_check(self):
+        if not np.any(self.bot.board == 6) or not np.any(self.bot.board == -6):
+            self.button[self.end[0]*8+self.end[1]].configure(bg="red")
+            self.update()
+            time.sleep(5)
+            self.destroy()
+            
     def set_text(self):
         """
         Updates the labels of all the buttons based on bot.board
