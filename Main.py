@@ -109,7 +109,7 @@ class Window(Frame):
 
     def check_check(self):
         if not np.any(self.bot.board == 6) or not np.any(self.bot.board == -6):
-            self.button[self.end[0]*8+self.end[1]].configure(bg="red")
+            self.button[self.to_loc].configure(bg="red")
             self.update()
             time.sleep(5)
             self.destroy()
