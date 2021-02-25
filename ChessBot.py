@@ -87,9 +87,17 @@ class ChessBot():
         
         if type(x) == str:
             if user == 'self':
-                return [8-int(x[1]), self.convert_dict[x[0]]]
+                try:
+                    return [8-int(x[1]), self.convert_dict[x[0]]]
+                except:
+                    print(x)
+                    return [8-int(x[1]), self.convert_dict[x[0]]]
             elif user == 'user':
-                return [1+int(x[1]), self.convert_dict[x[0]]]
+                try:
+                    return [1+int(x[1]), self.convert_dict[x[0]]]
+                except:
+                    print(x)
+                    return [1+int(x[1]), self.convert_dict[x[0]]]
         elif type(x) == list and [8, 8] > x >= [0, 0]:
             if user == 'self':
                 return self.convert_dict[x[1]] + str(8-x[0])
@@ -200,8 +208,27 @@ class ChessBot():
                 
                 if move_curr:
                     moves[self.convert([i, j], user)] = move_curr
-                
+        
         return moves
+    
+    def check_for_check(self, user):
+        if user == 'user':
+            moves = self.get_available_moves('self')
+        else:
+            moves = self.get_available_moves('user')
+            
+        for move in moves:
+            for end in moves[move]:
+                location = self.convert(end)
+                if np.abs(self.board[location[0], location[1]]) == 6:
+                    if user == 'user':
+                        self.message = 'You are in check'
+                        return 1
+                    if user == 'self':
+                        self.message = 'Bot is in check'
+                        return 1
+        
+        return 0
     
     def user_move(self, start, end, user = 'user', show = True):
         """
@@ -226,8 +253,10 @@ class ChessBot():
             start_c = self.convert(start)
             if self.board[start_c[0], start_c[1]] < 0:
                 print(start + ' cannot move at this point')
+                self.message = start + ' cannot move at this point'
             else:
                 print('No piece is found on the selected position')
+                self.message = 'No piece is found on '+end
             return 0
         except:
             raise
@@ -237,9 +266,13 @@ class ChessBot():
             start_c = self.convert(start)
             self.board[end_c[0], end_c[1]] = self.board[start_c[0], start_c[1]]
             self.board[start_c[0], start_c[1]] = 0
+        elif start == end:
+            self.message = 'You: .. to ..'
+            return 0
         else:
             print("This piece can't be moved there, available moves from " + 
                   start + " are " + str(moves[start]))
+            self.message = start + ' can only move to ' + str(moves[start])
             return 0
             
         if np.any(self.board[0, :] == -1):
@@ -250,7 +283,8 @@ class ChessBot():
         
         if show:
             self.show_board()
-            
+        
+        self.message = ''
         return 1
         
     def random_move(self):
@@ -275,7 +309,7 @@ class ChessBot():
             Tweak score to improve the bot
         """
         board = copy(self.board)
-        advantage = 5
+        advantage = 1
         board[board == 2] = 4*advantage
         board[board == 3] = 4*advantage
         board[board == 4] = 4*advantage
@@ -297,8 +331,9 @@ class ChessBot():
             for move in moves:
                 for new_move in moves[move]:
                     location = self.convert(new_move)
-                    score -= board[location[0], location[1]]
+                    score -= board[location[0], location[1]]/1.1
             
+        score += np.sum(np.where(self.board > 0)[0])/8
         return score
         
     def walk_board(self, depth = 0, board = None, s = '', user = 'self', score = 0):
@@ -317,7 +352,7 @@ class ChessBot():
         Output:
             s: list of possible moves with score attatched
         """
-        global _score
+        global _score, _speed_up
         subbot = ChessBot(depth = self.depth+1)
         if board is None:
             subbot.board = copy(self.board)
@@ -333,10 +368,10 @@ class ChessBot():
         if depth == 2:
             return [score, s]
         
-        _score = max(_score, score)
+        _score[depth] = max(_score[depth], score)
         
-        # if score > 100 and depth > 0:
-        #     return [-100, ""]
+        if score < _score[depth]/4*3 and depth > 0 and _speed_up:
+            return [-100, ""]
         
         new_s = []
         moves = subbot.get_available_moves(user)
@@ -369,20 +404,32 @@ class ChessBot():
         Make the bot do its next move
 
         """
-        global _score
+        global _score, _speed_up
         s = self.walk_board()
-        _score = 0
+        _score = [0]*5
         move = s[s.index(max(s[::2]))+1]
 
         while np.random.rand()>.5:
             try:
                 del s[s.index(max(s[::2])):s.index(max(s[::2]))+2]
-                move = s[s.index(max(s[::2]))+1]
-                move = s[s.index(0)+1]
+                if not any(s[s.index(max(s[::2]))+1]):
+                    move = s[s.index(max(s[::2]))+1]
+                else:
+                    break
             except:
                 break
+            
+        if not any(move):
+            _speed_up = 0
+            s = self.walk_board()
+            _score = [0]*5
+            move = s[s.index(max(s[::2]))+1]
+            _speed_up = 1
+            
         self.user_move(move[0:2], move[2:4], user = 'self', show=False)
+        
         
         return self.convert(move[0:2]), self.convert(move[2:4])
                 
-_score = 0
+_score = [0]*5
+_speed_up = 1
