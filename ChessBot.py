@@ -3,6 +3,7 @@ import numpy as np
 from termcolor import colored
 import random
 from copy import deepcopy as copy
+import concurrent.futures
 
 class ChessBot():
     """
@@ -212,7 +213,8 @@ class ChessBot():
             show [bool]: wether or not to show to board
             
         outputs:
-            None
+            status: 0 - Move not possible
+                    1 - Succes
                             
         """
         start = start.upper()
@@ -226,7 +228,7 @@ class ChessBot():
                 print(start + ' cannot move at this point')
             else:
                 print('No piece is found on the selected position')
-            return -1
+            return 0
         except:
             raise
             
@@ -238,10 +240,18 @@ class ChessBot():
         else:
             print("This piece can't be moved there, available moves from " + 
                   start + " are " + str(moves[start]))
-            return -1
+            return 0
             
+        if np.any(self.board[0, :] == -1):
+            self.board[0, self.board[0,:] == -1] = -5
+            
+        if np.any(self.board[-1, :] == 1):
+            self.board[-1, self.board[-1,:] == 1] = 5
+        
         if show:
             self.show_board()
+            
+        return 1
         
     def random_move(self):
         """
@@ -252,7 +262,7 @@ class ChessBot():
         end = random.choice(ends)
         self.user_move(start, end, user='self')
         
-    def board_score(self):
+    def board_score(self, depth):
         """
         Score the board for the bot to evaluate how its doing.
         Inputs:
@@ -265,17 +275,31 @@ class ChessBot():
             Tweak score to improve the bot
         """
         board = copy(self.board)
-        board[board == 2] = 4
-        board[board == 3] = 4
-        board[board == 4] = 4
-        board[board == 5] = 8
-        board[board == 6] = 1000
-        board[-board == 2] = -4
-        board[-board == 3] = -4
-        board[-board == 4] = -4
-        board[-board == 5] = -8
-        board[-board == 6] = -1000
-        return np.sum(board)
+        advantage = 5
+        board[board == 2] = 4*advantage
+        board[board == 3] = 4*advantage
+        board[board == 4] = 4*advantage
+        board[board == 5] = 8*advantage
+        board[board == 6] = 1000*advantage
+        board[board == -2] = -4
+        board[board == -3] = -4
+        board[board == -4] = -4
+        board[board == -5] = -8
+        board[board == -6] = -1000
+        
+        score = np.sum(board)
+        
+        if depth % 1:
+            moves = self.get_available_moves('user')
+        else:
+            moves = self.get_available_moves('self')
+            
+        for move in moves:
+            for new_move in moves[move]:
+                location = self.convert(new_move)
+                score += board[location[0], location[1]]
+            
+        return score
         
     def walk_board(self, depth = 0, board = None, s = '', user = 'self', score = 0):
         """
@@ -305,21 +329,36 @@ class ChessBot():
         else:
             user_next = 'self'
         
-        if depth == 3:
+        if depth == 2:
             return [score, s]
-       
+        
+        if score <= 0 and depth > 0:
+            return ["", -100]
         
         new_s = []
         moves = subbot.get_available_moves(user)
+        
         for move in moves:
             for next_move in moves[move]:
                 subbot.board = copy(board_original)
                 subbot.user_move(move, next_move, user=user, show=False)
-                new_s += subbot.walk_board(depth = depth+1, 
+                if depth == 0:
+                    with concurrent.futures.ThreadPoolExecutor() as executor:
+                        future = executor.submit(subbot.walk_board, 
+                                                 depth = depth+1, 
                                               board = subbot.board, 
                                               s = s + move + next_move, 
                                               user = user_next,
-                                              score = score + subbot.board_score())
+                                              score = score 
+                                              + subbot.board_score(depth))
+                        new_s += future.result()
+                else:
+                    new_s += subbot.walk_board(depth = depth+1, 
+                                                  board = subbot.board, 
+                                                  s = s + move + next_move, 
+                                                  user = user_next,
+                                                  score = score 
+                                                  + subbot.board_score(depth))
         return new_s
     
     def next_move(self):
@@ -333,4 +372,6 @@ class ChessBot():
             del s[s.index(max(s[::2])):s.index(max(s[::2]))+2]
             move = s[s.index(max(s[::2]))+1]
         self.user_move(move[0:2], move[2:4], user = 'self', show=False)
+        
+        return self.convert(move[0:2]), self.convert(move[2:4])
                 
