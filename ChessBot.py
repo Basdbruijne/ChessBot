@@ -292,12 +292,12 @@ class ChessBot():
         if depth % 1:
             moves = self.get_available_moves('user')
         else:
-            moves = self.get_available_moves('self')
+            moves = self.get_available_moves('user')
             
-        for move in moves:
-            for new_move in moves[move]:
-                location = self.convert(new_move)
-                score += board[location[0], location[1]]
+            for move in moves:
+                for new_move in moves[move]:
+                    location = self.convert(new_move)
+                    score -= board[location[0], location[1]]
             
         return score
         
@@ -317,6 +317,7 @@ class ChessBot():
         Output:
             s: list of possible moves with score attatched
         """
+        global _score
         subbot = ChessBot(depth = self.depth+1)
         if board is None:
             subbot.board = copy(self.board)
@@ -332,8 +333,10 @@ class ChessBot():
         if depth == 2:
             return [score, s]
         
-        if score <= 0 and depth > 0:
-            return ["", -100]
+        _score = max(_score, score)
+        
+        # if score > 100 and depth > 0:
+        #     return [-100, ""]
         
         new_s = []
         moves = subbot.get_available_moves(user)
@@ -366,12 +369,20 @@ class ChessBot():
         Make the bot do its next move
 
         """
+        global _score
         s = self.walk_board()
+        _score = 0
         move = s[s.index(max(s[::2]))+1]
-        while np.random.rand()>.2:
-            del s[s.index(max(s[::2])):s.index(max(s[::2]))+2]
-            move = s[s.index(max(s[::2]))+1]
+
+        while np.random.rand()>.5:
+            try:
+                del s[s.index(max(s[::2])):s.index(max(s[::2]))+2]
+                move = s[s.index(max(s[::2]))+1]
+                move = s[s.index(0)+1]
+            except:
+                break
         self.user_move(move[0:2], move[2:4], user = 'self', show=False)
         
         return self.convert(move[0:2]), self.convert(move[2:4])
                 
+_score = 0
