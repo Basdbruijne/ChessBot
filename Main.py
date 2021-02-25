@@ -45,11 +45,20 @@ class Window(Frame):
                 self.button[-1].grid(row=i,column=j)
                 self.button[-1]['font'] = font.Font(size=20)  
                 self.button_text[-1].set(self.pieces[-1*self.bot.board[i, j]-7])
-           
+               
+        self.textbox = Text(self, height = 1, width = 52) 
+        self.textbox.text = ''
+        self.textbox.insert(END, self.textbox.text)
+        self.textbox.place(x=0,y=464)
         # fromm and to track where the last move of the user
         self.fromm = ''
         self.to = ''
-                
+          
+    def set_message(self, text):
+        self.textbox.text = text
+        self.textbox.delete(1.0,"end")
+        self.textbox.insert(1.0, self.textbox.text)
+        
     def _from_rgb(self, rgb):
         """
         translates an rgb tuple of int to a tkinter friendly color code
@@ -57,6 +66,7 @@ class Window(Frame):
         return "#%02x%02x%02x" % rgb
     
     def clickExitButton(self, arg):
+        print(self.bot.board)
         """
         Action to perform on button click. 
         
@@ -74,12 +84,13 @@ class Window(Frame):
             # Highlight the button
             self.button[self.fromm_loc].configure(bg="yellow") 
             print('From ' + self.fromm)
+            self.set_message('You: ' + self.fromm + ' to ..')
         else:
             self.to = self.bot.convert([arg[0], arg[1]])
             self.to_loc = arg[0]*8+arg[1]
             print('to ' + self.to)
             print('')
-            
+            self.set_message('You: ' + self.fromm + ' to '+ self.to)
             # Request the move in the bot
             status = self.bot.user_move(self.fromm, 
                                         self.to, user = 'user', show = False)
@@ -91,13 +102,23 @@ class Window(Frame):
                 self.set_text()
                 self.update()
                 self.check_check()
+                status = self.bot.check_for_check('self')
+                if status:
+                    self.set_message(self.bot.message)
                 start, self.end = self.bot.next_move()
+                self.set_message('Bot: ' + self.bot.convert(start) 
+                                 + ' to '+ self.bot.convert(self.end))
                 self.reset_background()
                 self.button[start[0]*8+start[1]].configure(bg="green") 
                 self.button[self.end[0]*8+self.end[1]].configure(bg="yellow")
                 self.check_check()
+                status = self.bot.check_for_check('user')
+                if status:
+                    self.set_message(self.bot.message)
             else:
                 self.button[self.fromm_loc].configure(bg="red") 
+                self.set_message(self.bot.message)
+                
             
             # Wait a bit and reset the background colors
             self.update()
@@ -108,7 +129,14 @@ class Window(Frame):
             
 
     def check_check(self):
-        if not np.any(self.bot.board == 6) or not np.any(self.bot.board == -6):
+        if not np.any(self.bot.board == 6):
+            self.set_message('You win!')
+            self.button[self.to_loc].configure(bg="red")
+            self.update()
+            time.sleep(5)
+            self.destroy()
+        if not np.any(self.bot.board == -6):
+            self.set_message('The bot wins')
             self.button[self.to_loc].configure(bg="red")
             self.update()
             time.sleep(5)
@@ -136,5 +164,5 @@ class Window(Frame):
 root = Tk()
 app = Window(root)
 root.wm_title("Chess bot")
-root.geometry("485x464")
+root.geometry("485x485")
 root.mainloop()
