@@ -13,4 +13,9 @@ Put both files in the same folder and run Main.py to play the game.
 
 This is a beta version, I am aware that there are many bugs. 
 
-The bot is also not very good at chess yet
+The bot is also not very good at chess
+
+## How to play
+
+ - Clone the repository
+ - `python3 Main.py`
